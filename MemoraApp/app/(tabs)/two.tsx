@@ -141,7 +141,7 @@ export default function ProfileScreen() {
           )}
         </View>
         <Text style={[styles.userName, { color: colors.text }]}>
-          {user?.email || 'User'}
+          {user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email || 'User'}
         </Text>
         <Text style={[styles.userEmail, { color: colors.text, opacity: 0.7, alignSelf: 'center' }]}> 
           Eranians Archive Member

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, Alert, ScrollView, Image } from 'react-native';
+import { StyleSheet, TouchableOpacity, Alert, ScrollView, Image, TextInput } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { supabase, AVATAR_BUCKET } from '../constants/SupabaseConfig';
 import Colors from '@/constants/Colors';
@@ -15,6 +15,7 @@ export default function EditProfileScreen() {
   const colorScheme = useColorScheme();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [name, setName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -25,9 +26,62 @@ export default function EditProfileScreen() {
   async function fetchUser() {
     const { data: { user } } = await supabase.auth.getUser();
     setUser(user);
-    // Checks auth metadata first
+    setName(user?.user_metadata?.full_name || user?.user_metadata?.name || '');
     setAvatarUrl(user?.user_metadata?.avatar_url || null);
   }
+
+  const saveProfile = async () => {
+    if (!user) return;
+
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      Alert.alert('Missing name', 'Please enter your name before saving.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          full_name: trimmedName,
+          name: trimmedName,
+        },
+      });
+
+      if (authError) throw authError;
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: user.id,
+            full_name: trimmedName,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' }
+        );
+
+      if (profileError) {
+        console.warn('Profile update warning:', profileError.message);
+      }
+
+      setUser((prev: any) => ({
+        ...prev,
+        user_metadata: {
+          ...(prev?.user_metadata || {}),
+          full_name: trimmedName,
+          name: trimmedName,
+        },
+      }));
+
+      Alert.alert('Success', 'Your name has been updated.');
+      router.back();
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Unable to save your profile.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -166,6 +220,24 @@ export default function EditProfileScreen() {
           </View>
 
           <View style={styles.infoSection}>
+            <Text style={[styles.label, { color: colors.text }]}>Name</Text>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Enter your name"
+              placeholderTextColor={colorScheme === 'dark' ? '#94a3b8' : '#64748b'}
+              style={[
+                styles.input,
+                {
+                  color: colors.text,
+                  borderColor: colors.borderColor,
+                  backgroundColor: colorScheme === 'dark' ? '#111827' : '#ffffff',
+                },
+              ]}
+            />
+          </View>
+
+          <View style={styles.infoSection}>
             <Text style={[styles.label, { color: colors.text }]}>Email</Text>
             <Text style={[styles.value, { color: colors.text, opacity: 0.7 }]}>
               {user?.email}
@@ -174,10 +246,11 @@ export default function EditProfileScreen() {
         </View>
 
         <TouchableOpacity
-          onPress={() => router.back()}
-          style={[styles.saveButton, { backgroundColor: colors.tint }]}
+          onPress={saveProfile}
+          disabled={loading}
+          style={[styles.saveButton, { backgroundColor: colors.tint, opacity: loading ? 0.7 : 1 }]}
         >
-          <Text style={styles.saveButtonText}>Done</Text>
+          <Text style={styles.saveButtonText}>{loading ? 'Saving...' : 'Save Changes'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </LinearGradient>
@@ -234,6 +307,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
   },
   value: {
     fontSize: 16,

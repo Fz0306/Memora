@@ -1,0 +1,11 @@
+{
+  "name": "memora-root",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix ./MemoraApp start",
+    "start:lan": "npm --prefix ./MemoraApp run start:lan",
+    "android": "npm --prefix ./MemoraApp run android",
+    "ios": "npm --prefix ./MemoraApp run ios",
+    "web": "npm --prefix ./MemoraApp run web"
+  }
+}
