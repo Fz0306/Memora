@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { StyleSheet, FlatList, ActivityIndicator, Alert, Text, View, Image, RefreshControl, TextInput, TouchableOpacity } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio, Video, ResizeMode } from 'expo-av';
 import Constants from 'expo-constants';
+import { subscribeToAudioPlayback, toggleAudioPlayback } from '../../constants/audioPlayback';
 
 const isVideoUrl = (url?: string | null) => {
   if (!url) return false;
@@ -40,7 +41,6 @@ export default function TabOneScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const isFocused = useIsFocused();
-  const currentSoundRef = useRef<Audio.Sound | null>(null);
 
   const colors = Colors[colorScheme ?? 'light'];
 
@@ -52,11 +52,7 @@ export default function TabOneScreen() {
       playThroughEarpieceAndroid: false,
     });
 
-    return () => {
-      if (currentSoundRef.current) {
-        currentSoundRef.current.unloadAsync();
-      }
-    };
+    return subscribeToAudioPlayback(setPlayingSongId);
   }, []);
 
   const getSongTitle = (story: Story) => {
@@ -75,32 +71,7 @@ export default function TabOneScreen() {
 
   const playSong = async (songUrl: string, storyId: string) => {
     try {
-      if (currentSoundRef.current && playingSongId === storyId) {
-        await currentSoundRef.current.pauseAsync();
-        currentSoundRef.current = null;
-        setPlayingSongId(null);
-        return;
-      }
-
-      if (currentSoundRef.current) {
-        await currentSoundRef.current.unloadAsync();
-        currentSoundRef.current = null;
-      }
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: songUrl },
-        { shouldPlay: true }
-      );
-      currentSoundRef.current = sound;
-      setPlayingSongId(storyId);
-
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          sound.unloadAsync();
-          currentSoundRef.current = null;
-          setPlayingSongId((current) => (current === storyId ? null : current));
-        }
-      });
+      await toggleAudioPlayback(songUrl, storyId);
     } catch (error) {
       console.error('Audio playback error:', error);
       Alert.alert('Error', 'Unable to play the song. Please check your audio settings.');

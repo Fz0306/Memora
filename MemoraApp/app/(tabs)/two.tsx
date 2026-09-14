@@ -8,6 +8,9 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const SAVED_ACCOUNTS_KEY = '@memora/saved-account-emails';
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
@@ -84,8 +87,25 @@ export default function ProfileScreen() {
         text: 'Continue',
         onPress: async () => {
           try {
-            await supabase.auth.signOut();
-            router.replace('/signin');
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.email) {
+              const storedAccounts = await AsyncStorage.getItem(SAVED_ACCOUNTS_KEY);
+              const savedAccounts: Array<{ email: string; avatarUrl: string | null; session?: object }> = storedAccounts
+                ? JSON.parse(storedAccounts)
+                : [];
+              const normalizedEmail = user.email.trim().toLowerCase();
+              const currentAccount = {
+                email: normalizedEmail,
+                avatarUrl: user.user_metadata?.avatar_url || null,
+                session: (await supabase.auth.getSession()).data.session,
+              };
+              const nextAccounts = [
+                currentAccount,
+                ...savedAccounts.filter(account => (typeof account === 'string' ? account : account.email) !== normalizedEmail),
+              ].slice(0, 5);
+              await AsyncStorage.setItem(SAVED_ACCOUNTS_KEY, JSON.stringify(nextAccounts));
+            }
+            router.replace('/switch-account');
           } catch (error: any) {
             Alert.alert('Error', error.message);
           }

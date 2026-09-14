@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { 
-  Platform, 
   StyleSheet, 
   FlatList, 
   ActivityIndicator, 
   Alert, 
+  Image,
   TouchableOpacity, 
   RefreshControl 
 } from 'react-native';
@@ -16,6 +16,14 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { Text, View } from '@/components/Themed';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Video, ResizeMode } from 'expo-av';
+import { stopAudioPlayback } from '../../constants/audioPlayback';
+
+const isVideoUrl = (url?: string | null) => {
+  if (!url) return false;
+  const lower = url.split('?')[0].split('#')[0].toLowerCase();
+  return lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.m4v') || lower.endsWith('.webm') || lower.includes('video');
+};
 
 interface Story {
   id: string;
@@ -130,6 +138,8 @@ export default function DeleteScreen() {
           style: "destructive", 
           onPress: async () => {
             try {
+              await stopAudioPlayback();
+
               const { data: { user } } = await supabase.auth.getUser();
               if (!user) return;
 
@@ -186,6 +196,14 @@ export default function DeleteScreen() {
         <Text style={[styles.subtitle, { color: colors.text, opacity: 0.6 }]}> 
           Memories stay here until you delete them permanently.
         </Text>
+        {deletedStories.length > 0 && (
+          <View style={[styles.countBadge, { backgroundColor: colors.tint + '1f' }]}>
+            <FontAwesome name="trash-o" size={13} color={colors.tint} />
+            <Text style={[styles.countText, { color: colors.tint }]}>
+              {deletedStories.length} {deletedStories.length === 1 ? 'memory' : 'memories'} in bin
+            </Text>
+          </View>
+        )}
       </View>
 
       {loading && !refreshing ? (
@@ -207,13 +225,44 @@ export default function DeleteScreen() {
           }
           renderItem={({ item }) => (
             <View style={[styles.card, { 
-              backgroundColor: colorScheme === 'dark' ? '#1e293b' : '#ffffff',
-              borderColor: colorScheme === 'dark' ? '#334155' : '#e2e8f0'
+              backgroundColor: colors.cardBg,
+              borderColor: colors.borderColor
             }]}> 
+              {item.media_url ? (
+                <View style={styles.mediaPreview}>
+                  {isVideoUrl(item.media_url) ? (
+                    <Video
+                      source={{ uri: item.media_url }}
+                      style={styles.previewImage}
+                      useNativeControls
+                      resizeMode={ResizeMode.COVER}
+                      isLooping={false}
+                    />
+                  ) : (
+                    <Image source={{ uri: item.media_url }} style={styles.previewImage} />
+                  )}
+                  <View style={styles.deletedBadge}>
+                    <FontAwesome name="trash" size={11} color="#fff" />
+                    <Text style={styles.deletedBadgeText}>Deleted</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={[styles.mediaFallback, styles.mediaPreview, { backgroundColor: colorScheme === 'dark' ? '#273449' : '#f8f3d8' }]}>
+                  <FontAwesome name="image" size={28} color={colors.tint} />
+                  <Text style={[styles.mediaFallbackText, { color: colors.text }]}>No image attached</Text>
+                </View>
+              )}
+
               <View style={styles.cardMain}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>{item.title || 'Untitled Memory'}</Text>
+                <View style={styles.titleRow}>
+                  <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={2}>{item.title || 'Untitled Memory'}</Text>
+                  <FontAwesome name="ellipsis-v" size={16} color={colors.text} style={styles.moreIcon} />
+                </View>
                 <Text style={[styles.cardDescription, { color: colors.text, opacity: 0.7 }]} numberOfLines={2}>
                   {item.description || 'No description provided.'}
+                </Text>
+                <Text style={[styles.cardDate, { color: colors.text, opacity: 0.5 }]}>
+                  Added {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                 </Text>
               </View>
               
@@ -248,6 +297,8 @@ const styles = StyleSheet.create({
   backArrow: { marginBottom: 22 },
   title: { fontSize: 30, fontWeight: '900', marginBottom: 8 },
   subtitle: { fontSize: 15, lineHeight: 22, opacity: 0.75 },
+  countBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7, marginTop: 16 },
+  countText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.2 },
   loadingContainer: { flex: 1, justifyContent: 'center', paddingTop: 30 },
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 16, fontWeight: '600' },
@@ -255,7 +306,7 @@ const styles = StyleSheet.create({
   card: { 
     borderRadius: 20, 
     borderWidth: 1, 
-    padding: 20, 
+    overflow: 'hidden',
     marginBottom: 18,
     elevation: 2,
     shadowColor: '#000',
@@ -263,15 +314,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 18
   },
-  cardMain: { marginBottom: 15 },
+  mediaPreview: { height: 170, width: '100%', position: 'relative' },
+  previewImage: { width: '100%', height: '100%' },
+  mediaFallback: { alignItems: 'center', justifyContent: 'center', gap: 8 },
+  mediaFallbackText: { fontSize: 13, fontWeight: '700', opacity: 0.65 },
+  deletedBadge: { position: 'absolute', top: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#b91c1c', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6 },
+  deletedBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  cardMain: { padding: 18, paddingBottom: 4 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start' },
   cardTitle: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
+  moreIcon: { marginLeft: 8, marginTop: 3, opacity: 0.4 },
   cardDescription: { fontSize: 14, lineHeight: 20 },
-  buttonRow: { flexDirection: 'row', gap: 10 },
-  restoreButton: { flex: 1.2, height: 45, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
+  cardDate: { fontSize: 12, marginTop: 10, fontWeight: '600' },
+  buttonRow: { flexDirection: 'row', gap: 10, padding: 18, paddingTop: 12 },
+  restoreButton: { flex: 1.2, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' },
   deleteForeverButton: { 
     flex: 1, 
-    height: 45,
-    borderRadius: 10, 
+    height: 46,
+    borderRadius: 12, 
     alignItems: 'center', 
     justifyContent: 'center',
     backgroundColor: 'transparent',

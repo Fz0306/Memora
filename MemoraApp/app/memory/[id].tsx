@@ -11,6 +11,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
 import { Video, ResizeMode } from 'expo-av';
+import { stopAudioPlayback } from '../../constants/audioPlayback';
 
 const isVideoUrl = (url?: string | null) => {
   if (!url) return false;
@@ -305,6 +306,7 @@ export default function MemoryDetail() {
         style: 'destructive',
         onPress: async () => {
           try {
+            await stopAudioPlayback();
             setLoading(true);
 
             const {
