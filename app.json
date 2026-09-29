@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "Memora",
+    "slug": "MemoryArchiveApp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/MemoraLogoNB.png",
+    "scheme": "memoryarchiveapp",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "splash": {
+      "image": "./assets/images/MemoraLogoNB.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFF8B0"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/MemoraLogoNB.png",
+        "backgroundColor": "#FFD54F"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.MemoryArchiveApp"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "extra": {
+      "OPENAI_API_KEY": "your-openai-api-key-here",
+      "router": {},
+      "eas": {
+        "projectId": "55f96976-08ba-462d-9af3-cd4e59c36dbe"
+      }
+    },
+    "owner": "frentzy"
+  }
+}
